@@ -70,7 +70,7 @@ def cal_score(data):
     tmp = (tmp - tmp.min()) / (tmp.max() - tmp.min())
     data['score_stable'] = 1 - tmp
     ##calculate score
-    score_ratio = {'capacity': 0.5, 'stable': 0.3, 'health': 0.1, 'abnormal': 0.1}
+    score_ratio = {'capacity': 0.5, 'stable': 0.4, 'health': 0.05, 'abnormal': 0.05}
     tmp = data['score_ca'] * score_ratio['capacity'] + \
           data['score_stable'] * score_ratio['stable'] + \
           data['score_health'] * score_ratio['health'] + \

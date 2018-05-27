@@ -106,10 +106,31 @@ def draw_all(y1, y2, y3, y4, y5, y6, y7, y8):
     plt.savefig('../data/结果/result.jpg', dpi=128)
     plt.show()
     
+def draw_one_bat(x, y1, y2, bat_name):
+    fig = plt.figure(edgecolor='k',figsize=(16, 9))
+    plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文标签
+    plt.rcParams['axes.unicode_minus'] = False #用来正常显示负号
+    
+    #x = np.arange(0, len(y1))
+
+    plt.ylim(0, 1)
+    plt.plot(x, y2, 'bs', label='预测健康度')
+    plt.plot(x, y1, 'g^', label='实际健康度')
+    plt.plot(x, y1, color='g', linestyle='--')
+    
+    plt.grid(linestyle=':') #开启网格
+    plt.legend(loc='upper right')
+    plt.ylabel('电池健康度0～1')
+    plt.title('电池**%s健康度RF预测'%bat_name)  
+    
+    fig.autofmt_xdate()
+    fig.savefig('../data/draw_data/%s.jpg'%bat_name, dpi=128)
+    fig.show()
+    
 def concat_data(data0, data1, cols):
     s1 = set(cols)
     s2 = set(data0.columns)
-    s = s1.issubset(s2)
+    s = s1.issubset(s2) #s1是否包含s2
     if s:
         df1 = data0[cols[0:3]]
         df1 = df1.dropna()
@@ -136,9 +157,11 @@ def split_data(data, name):
     point = {}
     for i in data_gp.groups:
         df = data_gp.get_group(i)
+        df['train:pred_y'] = df['train:pred_y'].apply(float)
+        df['train:true_y'] = df['train:true_y'].apply(float)
         print('bms_id:%s, the length of data is: %d'%(i, len(df)))
         if len(df) >= 10:
-            point[i] = df.values[:,1:4]
+            point[i] = df.iloc[:, [1,2,3]]#df.values[:,1:4]
     return point
 
 def draw_bats_soh():
@@ -152,14 +175,46 @@ def draw_bats_soh():
     lr_data, lr_len = concat_data(lr, bms_id, cols)
     lr_data.to_excel('../data/结果/lr_data.xlsx')
     dt_data, dt_len = concat_data(dt, bms_id, cols)
+    dt_data.to_excel('../data/结果/dt_data.xlsx')
     rf_data, rf_len = concat_data(rf, bms_id, cols)
+    rf_data.to_excel('../data/结果/rf_data.xlsx')
     gbdt_data, gbdt_len = concat_data(gbdt, bms_id, cols)
+    gbdt_data.to_excel('../data/结果/gbdt_data.xlsx')
     
     lr_point = split_data(lr_data, 'bms_id')
     dt_point = split_data(dt_data, 'bms_id')
     rf_point = split_data(rf_data, 'bms_id')
     gbdt_point = split_data(gbdt_data, 'bms_id')
     
+    drop_keys = []
+    for key, values in rf_point.items():
+        if len(values) < 40:
+            drop_keys.append(key)
+            
+    for drop_key in drop_keys:
+        del rf_point[drop_key]
+        
+    for key, values in rf_point.items():
+        lower_bound = max(values.quantile(0.1)['train:true_y'], 0)
+        upper_bound = values.quantile(0.95)['train:true_y']
+        values = values[values['train:true_y'] > lower_bound]
+        v = values.values[:,0:3]
+        x = v[:,0]
+        x = [i[:-3] for i in x]
+        y1 = v[:,1]
+        y2 = v[:,2]
+        bat_name = '_' + key[-6:]
+        draw_one_bat(x, y1, y2, bat_name)
+        
+"""
+    for key, values in rf_point.items():
+        v = values[:,1:3]
+        y1 = values[:,1]
+        y2 = values[:,2]
+        bat_name = '_' + key[-6:]
+        draw_one_bat(y1, y2, bat_name)
+"""      
+""" 
     lr_pre = lr_point['010101030613001D'][:,1]
     lr_true = lr_point['010101030613001D'][:,2]
     dt_pre = dt_point['010101030613001D'][:,1]
@@ -169,6 +224,7 @@ def draw_bats_soh():
     gbdt_pre = gbdt_point['010101030613001D'][:,1]
     gbdt_true = gbdt_point['010101030613001D'][:,2]
     draw_all(lr_pre,lr_true,dt_pre,dt_true,rf_pre,rf_true,gbdt_pre,gbdt_true)
+"""
     
 def main():
     #read_file()
